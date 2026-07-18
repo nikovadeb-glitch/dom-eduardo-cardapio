@@ -1269,7 +1269,7 @@ export default function App() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, (base64) => handleUpdateInfoField("coverImage", base64), 1000, 0.82)}
+                          onChange={(e) => handleFileUpload(e, (base64) => handleUpdateInfoField("coverImage", base64), 1400, 0.90)}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                           id="cover-image-upload"
                         />
@@ -2066,7 +2066,7 @@ export default function App() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, (base64) => setDishForm({ ...dishForm, image: base64 }), 512, 0.82)}
+                          onChange={(e) => handleFileUpload(e, (base64) => setDishForm({ ...dishForm, image: base64 }), 800, 0.90)}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                           id="dish-image-upload"
                         />
@@ -2265,7 +2265,7 @@ export default function App() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, (base64) => setPromoForm({ ...promoForm, image: base64 }), 640, 0.82)}
+                          onChange={(e) => handleFileUpload(e, (base64) => setPromoForm({ ...promoForm, image: base64 }), 800, 0.90)}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                           id="promo-image-upload"
                         />
@@ -2457,7 +2457,7 @@ export default function App() {
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => handleFileUpload(e, (base64) => setGalleryForm({ ...galleryForm, image: base64 }), 640, 0.82)}
+                          onChange={(e) => handleFileUpload(e, (base64) => setGalleryForm({ ...galleryForm, image: base64 }), 1000, 0.90)}
                           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                           id="gallery-image-upload"
                         />
