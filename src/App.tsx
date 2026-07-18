@@ -61,6 +61,9 @@ import MenuItemCard from "./components/MenuItemCard";
 import ZoomModal from "./components/ZoomModal";
 import { QRCodeCanvas } from "qrcode.react";
 
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+import { db } from "./firebase";
+
 const renderWithBold = (text: string) => {
   if (!text) return null;
   const parts = text.split(/\*\*([^*]+)\*\*/g);
@@ -356,7 +359,35 @@ export default function App() {
     adminTab,
   };
 
-  // Reload data from localStorage when the page becomes visible
+  // Listen to Firebase changes in real-time
+  useEffect(() => {
+    const docRef = doc(db, "menu", "main");
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        // Don't overwrite if user is currently editing
+        if (isUserCurrentlyEditing()) {
+          console.log("[Firebase] Live update deferred (admin is editing).");
+          return;
+        }
+
+        const liveData = docSnap.data() as FullMenuDataset;
+        console.log("[Firebase] Live update applied!");
+        setMenuData(liveData);
+        localStorage.setItem("local_menu_data", JSON.stringify(liveData));
+        if (liveData.adminPassword) {
+          setActiveAdminPassword(liveData.adminPassword);
+        }
+        const now = new Date();
+        setLastUpdated(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      }
+    }, (error) => {
+      console.warn("[Firebase] Realtime listener error:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Reload from localStorage when page becomes visible
   useEffect(() => {
     const handleFocusOrVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -415,7 +446,7 @@ export default function App() {
 
 
   const fetchMenuData = async () => {
-    // Load from localStorage, fallback to static bundled data
+    // 1. Load from localStorage first (instant)
     const cached = localStorage.getItem("local_menu_data");
     if (cached) {
       try {
@@ -424,14 +455,28 @@ export default function App() {
         if (cachedData.adminPassword) {
           setActiveAdminPassword(cachedData.adminPassword);
         }
-        const now = new Date();
-        setLastUpdated(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-        return;
       } catch (e) {
         console.warn("[Cache] Error parsing local storage cache:", e);
       }
     }
-    // No cached data — static defaults from menuData.ts are already set in state
+
+    // 2. Fetch from Firebase Firestore (always, to get latest data)
+    try {
+      const docRef = doc(db, "menu", "main");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data() as FullMenuDataset;
+        setMenuData(data);
+        localStorage.setItem("local_menu_data", JSON.stringify(data));
+        if (data.adminPassword) {
+          setActiveAdminPassword(data.adminPassword);
+        }
+        console.log("[Firebase] Menu loaded from Firestore.");
+      }
+    } catch (e) {
+      console.warn("[Firebase] Could not fetch from Firestore, using cached/default data:", e);
+    }
+
     const now = new Date();
     setLastUpdated(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
   };
@@ -546,14 +591,20 @@ export default function App() {
     }
   };
 
-  // Save menu data to localStorage (persists in the browser)
+  // Save menu data to Firebase Firestore (persists in the cloud)
   const saveMenuDataPermanently = async (newDataset: FullMenuDataset) => {
     setIsSaving(true);
 
     try {
-      // Always enforce the correct admin password to protect user access
+      // Always enforce the correct admin password
       newDataset.adminPassword = "8111";
 
+      // 1. Save to Firebase Firestore (cloud - permanent)
+      const docRef = doc(db, "menu", "main");
+      await setDoc(docRef, JSON.parse(JSON.stringify(newDataset)));
+      console.log("[Firebase] Menu saved to Firestore.");
+
+      // 2. Update local state and cache
       setMenuData(newDataset);
       localStorage.setItem("local_menu_data", JSON.stringify(newDataset));
       setActiveAdminPassword("8111");
@@ -564,7 +615,10 @@ export default function App() {
       showToast("success", "Cardápio atualizado e salvo com sucesso!");
     } catch (e: any) {
       console.error(e);
-      showToast("error", "Não foi possível salvar as alterações.");
+      // Fallback: save to localStorage even if Firebase fails
+      setMenuData(newDataset);
+      localStorage.setItem("local_menu_data", JSON.stringify(newDataset));
+      showToast("error", "Salvo apenas neste navegador (erro na nuvem). Verifique sua conexão.");
     } finally {
       setIsSaving(false);
     }
